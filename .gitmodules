@@ -1,7 +1,7 @@
 [submodule "src/modules/mavlink/mavlink"]
 	path = src/modules/mavlink/mavlink
-	url = https://github.com/mavlink/mavlink.git
-	branch = master
+	url = https://github.com/w407022008/mavlink.git
+	branch = 1.15.1
 [submodule "src/drivers/uavcan/libuavcan"]
 	path = src/drivers/uavcan/libuavcan
 	url = https://github.com/dronecan/libuavcan.git
@@ -12,7 +12,7 @@
 	branch = main
 [submodule "Tools/simulation/gazebo-classic/sitl_gazebo-classic"]
 	path = Tools/simulation/gazebo-classic/sitl_gazebo-classic
-	url = https://github.com/PX4/PX4-SITL_gazebo-classic.git
+	url = https://github.com/w407022008/sitl_gazebo.git
 	branch = main
 [submodule "src/drivers/gps/devices"]
 	path = src/drivers/gps/devices

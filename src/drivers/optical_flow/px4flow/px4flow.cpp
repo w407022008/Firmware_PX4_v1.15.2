@@ -235,7 +235,7 @@ PX4FLOW::collect()
 	sensor_optical_flow_s report{};
 
 	report.timestamp_sample = hrt_absolute_time();
-	report.device_id = device_id.devid;
+	report.device_id = 100;//get_device_id();
 
 	report.pixel_flow[0] = static_cast<float>(_frame_integral.pixel_flow_x_integral) / 10000.f; //convert to radians
 	report.pixel_flow[1] = static_cast<float>(_frame_integral.pixel_flow_y_integral) / 10000.f; //convert to radians

@@ -1287,7 +1287,7 @@ MavlinkReceiver::handle_message_odometry(mavlink_message_t *msg)
 	// position x/y/z (m)
 	if (odom_in_p.isAllFinite()) {
 		// frame_id: Coordinate frame of reference for the pose data.
-		switch (odom_in.frame_id) {
+		switch (MAV_FRAME_LOCAL_NED){//odom_in.frame_id) {
 		case MAV_FRAME_LOCAL_NED:
 			// NED local tangent frame (x: North, y: East, z: Down) with origin fixed relative to earth.
 			odom.pose_frame = vehicle_odometry_s::POSE_FRAME_NED;
@@ -1370,7 +1370,7 @@ MavlinkReceiver::handle_message_odometry(mavlink_message_t *msg)
 	// velocity vx/vy/vz (m/s)
 	if (odom_in_v.isAllFinite()) {
 		// child_frame_id: Coordinate frame of reference for the velocity in free space (twist) data.
-		switch (odom_in.child_frame_id) {
+		switch (MAV_FRAME_LOCAL_NED){//odom_in.child_frame_id) {
 		case MAV_FRAME_LOCAL_NED:
 			// NED local tangent frame (x: North, y: East, z: Down) with origin fixed relative to earth.
 			odom.velocity_frame = vehicle_odometry_s::VELOCITY_FRAME_NED;
@@ -1554,10 +1554,18 @@ MavlinkReceiver::handle_message_set_attitude_target(mavlink_message_t *msg)
 		const bool attitude = !(type_mask & ATTITUDE_TARGET_TYPEMASK_ATTITUDE_IGNORE);
 		const bool body_rates = !(type_mask & ATTITUDE_TARGET_TYPEMASK_BODY_ROLL_RATE_IGNORE)
 					&& !(type_mask & ATTITUDE_TARGET_TYPEMASK_BODY_PITCH_RATE_IGNORE);
+		const bool use_hover_thrust_est = !(type_mask & ATTITUDE_TARGET_TYPEMASK_USE_HOVER_THRUST_EST);
 		const bool thrust_body = (type_mask & ATTITUDE_TARGET_TYPEMASK_THRUST_BODY_SET);
 
 		vehicle_status_s vehicle_status{};
 		_vehicle_status_sub.copy(&vehicle_status);
+
+		hover_thrust_estimate_s hover_thrust_estimate{};
+		_hover_thrust_estimate_sub.copy(&hover_thrust_estimate);
+		float thrust_scale = _param_mpc_thr_hover.get() / 9.81f;
+		if (hover_thrust_estimate.valid && use_hover_thrust_est) {
+			thrust_scale = hover_thrust_estimate.hover_thrust / 9.81f;
+		}
 
 		if (attitude || body_rates) {
 			offboard_control_mode_s ocm{};
@@ -1583,12 +1591,12 @@ MavlinkReceiver::handle_message_set_attitude_target(mavlink_message_t *msg)
 							     (float)NAN : attitude_target.body_yaw_rate;
 
 			if (!thrust_body && !(attitude_target.type_mask & ATTITUDE_TARGET_TYPEMASK_THROTTLE_IGNORE)) {
-				fill_thrust(attitude_setpoint.thrust_body, vehicle_status.vehicle_type, attitude_target.thrust);
+				fill_thrust(attitude_setpoint.thrust_body, vehicle_status.vehicle_type, attitude_target.thrust * thrust_scale);
 
 			} else if (thrust_body) {
-				attitude_setpoint.thrust_body[0] = attitude_target.thrust_body[0];
-				attitude_setpoint.thrust_body[1] = attitude_target.thrust_body[1];
-				attitude_setpoint.thrust_body[2] = attitude_target.thrust_body[2];
+				attitude_setpoint.thrust_body[0] = attitude_target.thrust_body[0] * thrust_scale;
+				attitude_setpoint.thrust_body[1] = attitude_target.thrust_body[1] * thrust_scale;
+				attitude_setpoint.thrust_body[2] = attitude_target.thrust_body[2] * thrust_scale;
 			}
 
 			// Publish attitude setpoint only once in OFFBOARD
@@ -1618,7 +1626,7 @@ MavlinkReceiver::handle_message_set_attitude_target(mavlink_message_t *msg)
 					 attitude_target.body_yaw_rate;
 
 			if (!(attitude_target.type_mask & ATTITUDE_TARGET_TYPEMASK_THROTTLE_IGNORE)) {
-				fill_thrust(setpoint.thrust_body, vehicle_status.vehicle_type, attitude_target.thrust);
+				fill_thrust(setpoint.thrust_body, vehicle_status.vehicle_type, attitude_target.thrust * thrust_scale);
 			}
 
 			// Publish rate setpoint only once in OFFBOARD
@@ -2085,6 +2093,7 @@ MavlinkReceiver::handle_message_manual_control(mavlink_message_t *msg)
 	// For backwards compatibility at the moment interpret throttle in range [0,1000]
 	manual_control_setpoint.throttle = ((mavlink_manual_control.z / 1000.f) * 2.f) - 1.f;
 	manual_control_setpoint.yaw = mavlink_manual_control.r / 1000.f;
+	manual_control_setpoint.buttons = mavlink_manual_control.buttons;
 	// Pass along the button states
 	manual_control_setpoint.buttons = mavlink_manual_control.buttons;
 	manual_control_setpoint.data_source = manual_control_setpoint_s::SOURCE_MAVLINK_0 + _mavlink->get_instance_id();
@@ -2564,7 +2573,7 @@ MavlinkReceiver::handle_message_gps_rtcm_data(mavlink_message_t *msg)
 
 	gps_inject_data_s gps_inject_data_topic{};
 
-	gps_inject_data_topic.timestamp = hrt_absolute_time();
+	// gps_inject_data_topic.timestamp = hrt_absolute_time();
 
 	gps_inject_data_topic.len = math::min((int)sizeof(gps_rtcm_data_msg.data),
 					      (int)sizeof(uint8_t) * gps_rtcm_data_msg.len);
