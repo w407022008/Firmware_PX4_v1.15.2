@@ -51,4 +51,11 @@
         <arg name="fcu_url" value="$(arg fcu_url)"/>
         <arg name="respawn_mavros" value="$(arg respawn_mavros)"/>
     </include>
+    
+    <!-- Gazebo to MAVROS Bridge Node -->
+    <node pkg="px4" type="gazebo_to_mavros_bridge.py" name="gazebo_to_mavros_bridge" output="screen">
+        <param name="uav_name" type="string" value="" />
+        <param name="offset_yaw" type="double" value="0.0" />
+        <param name="reset_origin" type="bool" value="false" />
+    </node>
 </launch>
